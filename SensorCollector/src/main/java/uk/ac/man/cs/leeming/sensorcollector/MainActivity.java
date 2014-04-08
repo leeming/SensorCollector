@@ -10,12 +10,14 @@ import android.app.FragmentTransaction;
 import android.support.v13.app.FragmentPagerAdapter;
 import android.os.Bundle;
 import android.support.v4.view.ViewPager;
+import android.util.Log;
 import android.view.Gravity;
 import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.Button;
 import android.widget.TextView;
 
 
@@ -35,6 +37,8 @@ public class MainActivity extends Activity implements ActionBar.TabListener {
      * The {@link ViewPager} that will host the section contents.
      */
     ViewPager mViewPager;
+
+    public SensorLogger mSensorLogger = null;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -73,6 +77,24 @@ public class MainActivity extends Activity implements ActionBar.TabListener {
                     actionBar.newTab()
                             .setText(mSectionsPagerAdapter.getPageTitle(i))
                             .setTabListener(this));
+        }
+
+        mSensorLogger = new SensorLogger();
+        mSensorLogger.start();
+
+    }
+
+
+    @Override
+    public void onBackPressed() {
+        if (mViewPager.getCurrentItem() == 0) {
+            // If the user is currently looking at the first step, allow the system to handle the
+            // Back button. This calls finish() on this activity and pops the back stack.
+            mSensorLogger.kill();
+            super.onBackPressed();
+        } else {
+            // Otherwise, select the previous step.
+            mViewPager.setCurrentItem(mViewPager.getCurrentItem() - 1);
         }
     }
 
@@ -159,6 +181,7 @@ public class MainActivity extends Activity implements ActionBar.TabListener {
          * fragment.
          */
         private static final String ARG_SECTION_NUMBER = "section_number";
+        private static final String ARG_SECTION_LAYOUT = "section_layout";
 
         /**
          * Returns a new instance of this fragment for the given section
@@ -167,6 +190,7 @@ public class MainActivity extends Activity implements ActionBar.TabListener {
         public static PlaceholderFragment newInstance(int sectionNumber) {
             PlaceholderFragment fragment = new PlaceholderFragment();
             Bundle args = new Bundle();
+
             args.putInt(ARG_SECTION_NUMBER, sectionNumber);
             fragment.setArguments(args);
             return fragment;
@@ -177,7 +201,59 @@ public class MainActivity extends Activity implements ActionBar.TabListener {
 
         @Override
         public View onCreateView(LayoutInflater inflater, ViewGroup container,
-                Bundle savedInstanceState) {
+                Bundle savedInstanceState)
+        {
+            View rootView = null;
+
+            switch(getArguments().getInt(ARG_SECTION_NUMBER))
+            {
+                case 1:
+                    rootView = getHomeView(inflater, container, savedInstanceState);
+                    break;
+                default:
+                    rootView = getDefaultView(inflater, container, savedInstanceState);
+
+            }
+
+            return rootView;
+        }
+
+        public View getHomeView(LayoutInflater inflater, ViewGroup container,
+                                Bundle savedInstanceState)
+        {
+            final View rootView = inflater.inflate(R.layout.tab_home, container, false);
+
+            Button button = (Button) rootView.findViewById(R.id.btnStart);
+            button.setOnClickListener(new View.OnClickListener() {
+                public void onClick(View v) {
+                    Log.v("APP", "Start clicked");
+
+                    rootView.findViewById(R.id.btnStart).setVisibility(View.INVISIBLE);
+                    rootView.findViewById(R.id.btnStop).setVisibility(View.VISIBLE);
+
+                    ((MainActivity)getActivity()).mSensorLogger.startLogging();
+                }
+            });
+
+            button = (Button) rootView.findViewById(R.id.btnStop);
+            button.setOnClickListener(new View.OnClickListener() {
+                public void onClick(View v) {
+                    Log.v("APP", "Stop clicked");
+
+
+                    rootView.findViewById(R.id.btnStart).setVisibility(View.VISIBLE);
+                    rootView.findViewById(R.id.btnStop).setVisibility(View.INVISIBLE);
+
+                    ((MainActivity)getActivity()).mSensorLogger.startLogging();
+                }
+            });
+
+            return rootView;
+        }
+
+        public View getDefaultView(LayoutInflater inflater, ViewGroup container,
+                                         Bundle savedInstanceState)
+        {
             View rootView = inflater.inflate(R.layout.fragment_main, container, false);
             TextView textView = (TextView) rootView.findViewById(R.id.section_label);
             textView.setText(Integer.toString(getArguments().getInt(ARG_SECTION_NUMBER)));
