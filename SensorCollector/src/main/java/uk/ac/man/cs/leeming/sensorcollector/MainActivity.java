@@ -4,9 +4,13 @@ import java.util.Locale;
 
 import android.app.Activity;
 import android.app.ActionBar;
+import android.app.AlertDialog;
 import android.app.Fragment;
 import android.app.FragmentManager;
 import android.app.FragmentTransaction;
+import android.content.Context;
+import android.content.DialogInterface;
+import android.os.PowerManager;
 import android.support.v13.app.FragmentPagerAdapter;
 import android.os.Bundle;
 import android.support.v4.view.ViewPager;
@@ -17,6 +21,7 @@ import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.WindowManager;
 import android.widget.Button;
 import android.widget.TextView;
 
@@ -39,6 +44,7 @@ public class MainActivity extends Activity implements ActionBar.TabListener {
     ViewPager mViewPager;
 
     public SensorLogger mSensorLogger = null;
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -79,7 +85,10 @@ public class MainActivity extends Activity implements ActionBar.TabListener {
                             .setTabListener(this));
         }
 
-        mSensorLogger = new SensorLogger();
+        //from https://stackoverflow.com/a/14926037
+        getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+
+        mSensorLogger = new SensorLogger(this);
         mSensorLogger.start();
 
     }
@@ -228,10 +237,31 @@ public class MainActivity extends Activity implements ActionBar.TabListener {
                 public void onClick(View v) {
                     Log.v("APP", "Start clicked");
 
-                    rootView.findViewById(R.id.btnStart).setVisibility(View.INVISIBLE);
+                    TextView tv = (TextView) rootView.findViewById(R.id.filename);
+                    String filename = tv.getText().toString();
+
+                    Log.i("BLAH",filename);
+
+                    if(filename.equals(""))
+                    {
+                        //from https://stackoverflow.com/questions/2115758/how-to-display-alert-dialog-in-android
+                        new AlertDialog.Builder(rootView.getContext())
+                                .setTitle("Save to..?")
+                                .setMessage("You need to select where you want to save the sensor data to.")
+                                .setCancelable(false)
+                                .setPositiveButton("OK", new DialogInterface.OnClickListener() {
+                                    public void onClick(DialogInterface dialog, int id) {
+                                        //do nothing
+                                    }
+                                })
+                                .show();
+                        return;
+                    }
+
+                    rootView.findViewById(R.id.btnStart).setVisibility(View.GONE);
                     rootView.findViewById(R.id.btnStop).setVisibility(View.VISIBLE);
 
-                    ((MainActivity)getActivity()).mSensorLogger.startLogging();
+                    ((MainActivity)getActivity()).mSensorLogger.startLogging(filename);
                 }
             });
 
@@ -242,9 +272,9 @@ public class MainActivity extends Activity implements ActionBar.TabListener {
 
 
                     rootView.findViewById(R.id.btnStart).setVisibility(View.VISIBLE);
-                    rootView.findViewById(R.id.btnStop).setVisibility(View.INVISIBLE);
+                    rootView.findViewById(R.id.btnStop).setVisibility(View.GONE);
 
-                    ((MainActivity)getActivity()).mSensorLogger.startLogging();
+                    ((MainActivity)getActivity()).mSensorLogger.stopLogging();
                 }
             });
 

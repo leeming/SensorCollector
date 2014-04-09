@@ -27,10 +27,15 @@
             android:scrollbars="vertical"
             android:text="@string/hello_world" />
 
+        <LinearLayout
+            android:orientation="horizontal"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content">
 
             <EditText
                 android:id="@+id/filename"
-                android:layout_width="fill_parent"
+                android:layout_weight="1"
+                android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:hint="@string/filenameInput" />
 
@@ -48,8 +53,9 @@
                 android:layout_height="wrap_content"
                 android:layout_gravity="left"
                 android:text="@string/stop"
-                android:visibility="invisible" />
+                android:visibility="gone" />
 
+        </LinearLayout>
     </LinearLayout>
 
 </RelativeLayout>
