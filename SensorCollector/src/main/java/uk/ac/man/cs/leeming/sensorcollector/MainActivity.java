@@ -23,6 +23,8 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.view.WindowManager;
 import android.widget.Button;
+import android.widget.EditText;
+import android.widget.NumberPicker;
 import android.widget.TextView;
 
 
@@ -232,6 +234,7 @@ public class MainActivity extends Activity implements ActionBar.TabListener {
         {
             final View rootView = inflater.inflate(R.layout.tab_home, container, false);
 
+
             Button button = (Button) rootView.findViewById(R.id.btnStart);
             button.setOnClickListener(new View.OnClickListener() {
                 public void onClick(View v) {
@@ -240,7 +243,7 @@ public class MainActivity extends Activity implements ActionBar.TabListener {
                     TextView tv = (TextView) rootView.findViewById(R.id.filename);
                     String filename = tv.getText().toString();
 
-                    Log.i("BLAH",filename);
+
 
                     if(filename.equals(""))
                     {
@@ -258,10 +261,17 @@ public class MainActivity extends Activity implements ActionBar.TabListener {
                         return;
                     }
 
+                    Log.i("BLAH",filename);
+
+                    EditText et = (EditText) rootView.findViewById(R.id.delayStartInput);
+                    int delay = Integer.parseInt(et.getText().toString()==""?"0":et.getText().toString());
+
+
+
                     rootView.findViewById(R.id.btnStart).setVisibility(View.GONE);
                     rootView.findViewById(R.id.btnStop).setVisibility(View.VISIBLE);
 
-                    ((MainActivity)getActivity()).mSensorLogger.startLogging(filename);
+                    ((MainActivity)getActivity()).mSensorLogger.startLogging(filename,delay);
                 }
             });
 

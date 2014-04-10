@@ -6,11 +6,16 @@ import android.hardware.Sensor;
 import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
 import android.hardware.SensorManager;
+import android.media.AudioManager;
+import android.media.ToneGenerator;
+import android.os.Environment;
 import android.os.SystemClock;
 import android.util.Log;
 import android.util.Pair;
 
 import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
@@ -40,6 +45,7 @@ public class SensorLogger extends Thread implements SensorEventListener {
     Queue<Pair<Long, String>> cacheBar;
     private String workingDirectory;
     private File saveTo;
+    private boolean logging = false;
 
     public SensorLogger(MainActivity activityRef) {
         this.activityRef = activityRef;
@@ -59,46 +65,79 @@ public class SensorLogger extends Thread implements SensorEventListener {
 
             SystemClock.sleep(5000);
 
-            Log.i(TAG,"Thread iteration - dumping sensor values");
+            //Only try to save cache if we are currently logging sensor data
+            if(logging)
+            {
+                Log.i(TAG,"Thread iteration - dumping sensor values");
+                saveCacheToFile();
 
-            saveCacheToFile();
-
-            //Log.i(TAG,cacheAcc.toString()); //todo cacheACC isn't concurrent
-
-            cacheAcc.clear();
+                //cacheAcc.clear();
+            }
         }
     }
 
+    /**
+     * Appends each sensor cache into its own file. Cache is then emptied
+     * after saving to file. File is opened and closed each time this
+     * method is called. TODO is this a problem?
+     * If no params are given, all sensor caches are writen to file
+     */
     public void saveCacheToFile()
     {
-        File fAcc = new File(saveTo,"accelerometer.csv");
+        Log.i(TAG,"Saving all cache");
 
+        saveCacheToFile("accelerometer.csv",cacheAcc);
+        saveCacheToFile("barometer.csv",cacheBar);
+        saveCacheToFile("gravity.csv",cacheGrav);
+        saveCacheToFile("gyroscope.csv",cacheGyro);
+        saveCacheToFile("linear_acceleration.csv",cacheLinAcc);
+        saveCacheToFile("rotation.csv",cacheRotation);
+        saveCacheToFile("steps.csv",cacheStep);
+
+
+    }
+
+    public void saveCacheToFile(String filename, Queue<Pair<Long,String>> cache)
+    {
+        Log.i(TAG,"Saving cache to file => "+filename);
+        //File fAcc = new File(saveTo,"accelerometer.csv");
+
+        File file = new File(new File(workingDirectory), filename);
 
         try
         {
-
-            FileWriter out = new FileWriter(fAcc);
+            //FileOutputStream f = new FileOutputStream(file);
+            FileWriter f = new FileWriter(file,true);
 
 
             Pair<Long, String> s = null;
-            while(cacheAcc.peek()!=null)
+            while(cache.peek()!=null)
             {
-                s=cacheAcc.remove();
-                Log.v(TAG,s.first+":"+s.second);
-                out.write(s.first+","+s.second+"\n");
+                s=cache.remove();
+                f.write(s.first+","+s.second+"\n");
             }
 
-
-            out.close();
+            f.flush();
+            f.close();
+        }
+        catch (FileNotFoundException e) {
+            e.printStackTrace();
         }
         catch (IOException e) {
-            Log.e("Exception", "File write failed: " + e.toString());
+            Log.e("Exception", "File write failed to "+filename+" : " + e.toString());
         }
     }
 
+    /**
+     * Stop logging sensor data. This also saves what ever data is
+     * left in cache to file and unregisters the listeners
+     */
     public void stopLogging() {
         //stump
         Log.i(TAG, "Stopping collection");
+        logging = false;
+
+        saveCacheToFile();
 
         //Stops listening to ALL sensors
         mSensorManager.unregisterListener(this);
@@ -116,19 +155,43 @@ public class SensorLogger extends Thread implements SensorEventListener {
             {Sensor.TYPE_PRESSURE, SensorManager.SENSOR_DELAY_NORMAL}
     };
 
+    public void startLogging(String filename,int delay) {
+        Log.i(TAG,"Waiting "+delay+" seconds until start");
+        while(delay>0)
+        {
+            SystemClock.sleep(1000);
+            delay--;
+
+            //Play a beep noise
+            if(delay==0)    //long
+            {
+                final ToneGenerator tg = new ToneGenerator(AudioManager.STREAM_NOTIFICATION, 100);
+                tg.startTone(ToneGenerator.TONE_PROP_BEEP,1000);
+                Log.v(TAG,"BEEEEEEEPPPPP");
+            }
+            else    //short
+            {
+                final ToneGenerator tg = new ToneGenerator(AudioManager.STREAM_NOTIFICATION, 100);
+                tg.startTone(ToneGenerator.TONE_PROP_BEEP,100);
+                tg.stopTone();
+                Log.v(TAG,"BEEP");
+            }
+        }
+        startLogging(filename);
+    }
     public void startLogging(String filename) {
         //stump
         Log.i(TAG, "Starting collection");
+        logging = true;
 
-        File f = activityRef.getFilesDir();
-        Log.i(TAG,"App file root at: "+f.getAbsolutePath());
+        //File f = activityRef.getFilesDir();
 
-        workingDirectory = filename+"_"+System.currentTimeMillis();
 
-        Log.i(TAG,"PWD : "+workingDirectory);
+        workingDirectory = Environment.getExternalStorageDirectory().getAbsolutePath() + "/experimentdata/"+filename+"_"+System.currentTimeMillis();
 
-        saveTo = new File(f,workingDirectory);
-        saveTo.mkdir();
+        saveTo = new File(workingDirectory);
+        saveTo.mkdirs();
+        Log.i(TAG,"App file root at: "+workingDirectory);
 
 
         //Add all the listeners
@@ -190,6 +253,7 @@ public class SensorLogger extends Thread implements SensorEventListener {
 
     private void getBar(SensorEvent event) {
         //athmospheric pressure in hectopascal (hPa)
+        cacheBar.add(Pair.create(System.nanoTime(), String.valueOf(event.values[0])));
     }
 
     private void getGravity(SensorEvent event) {
@@ -223,6 +287,17 @@ public class SensorLogger extends Thread implements SensorEventListener {
     }
 
     private void getRotation(SensorEvent event) {
+        float x = event.values[0];
+        float y = event.values[1];
+        float z = event.values[2];
+
+        StringBuilder r = new StringBuilder();
+        r.append(Float.valueOf(x)).append(",");
+        r.append(Float.valueOf(y)).append(",");
+        r.append(Float.valueOf(z)).append(",");
+        r.append(Float.valueOf(event.values[3]));
+
+        cacheRotation.add(Pair.create(System.nanoTime(), r.toString()));
     }
 
     private void getGyro(SensorEvent event) {
